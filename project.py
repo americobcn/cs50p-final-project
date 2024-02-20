@@ -1,17 +1,17 @@
-import argparse, time
+import argparse, re
 from os.path import join
 from os import walk
+from subprocess import call
 
 
 class Converter:
-    def __init__(self) -> None:
-        pass
+    def __init__(self) -> None: ...
 
     @classmethod
-    def convert(cls, input_file=str, output_format=str):
-        # ffmpeg -i sound.caf sound.wav
-        ...
-        
+    def convert(cls, input_file=str, input_format=str, output_format=str):
+        output_file = re.sub(r"", r"", input_file)
+        call(f"/usr/local/bin/ffmpeg -i '{input_file}' '{output_file}'")
+
 
 def main():
     args = app_args_parser()
@@ -19,18 +19,59 @@ def main():
     convert_files(files, args.output)
 
 
-
 def app_args_parser():
     parser = argparse.ArgumentParser(description="Scan folder ")
-    parser.add_argument("-p", "--path", required=True, help="folder to lookup for audio files to be converted", type=str)
-    parser.add_argument("-d", "--dest", required=True, help="Destination folder to save converted audio files", type=str)
-    parser.add_argument("-i", "--input", required=True, help="Input format audio files [wav, aiff , mp3, ...]", type=str)
-    parser.add_argument("-o", "--output", required=True, help="Output format audio files [wav, aiff , mp3, ...]", type=str)
-    parser.add_argument("-l", "--log", required=True, choices=[True, False] ,help="Log while converting files", type=bool)
+    parser.add_argument(
+        "-p",
+        "--path",
+        required=True,
+        help="folder to lookup for audio files to be converted",
+        type=str,
+    )
+    parser.add_argument(
+        "-d",
+        "--dest",
+        required=True,
+        help="Destination folder to save converted audio files",
+        type=str,
+    )
+    parser.add_argument(
+        "-i",
+        "--input",
+        required=True,
+        help="Input format audio files [wav, aiff , mp3, ...]",
+        type=str,
+    )
+    parser.add_argument(
+        "-o",
+        "--output",
+        required=True,
+        help="Output format audio files [wav, aiff , mp3, ...]",
+        type=str,
+    )
+    parser.add_argument(
+        "-l",
+        "--log",
+        required=True,
+        choices=[True, False],
+        help="Log while converting files",
+        type=bool,
+    )
     return parser.parse_args()
 
 
 def look_up_files(root_folder=str, output_format=str):
+    """
+    Scan folder.
+
+    :param root_folder: Root folder to be scanned
+    :type root_folder: str
+    :param output_format: str 'wav, mp3, aif'
+    :type output_format: str
+    :return: A list fo paths
+    :rtype: list
+    """
+
     files_to_convert = []
     for root, dirs, files in walk(root_folder):
         for f in files:
@@ -40,17 +81,24 @@ def look_up_files(root_folder=str, output_format=str):
 
 
 def convert_files(files=list, output_format=str):
+    """
+    Convert a list of files to output format.
+
+    :param files: List of files to be converted
+    :type root_folder: list
+    :param output_format: str 'wav, mp3, aif'
+    :type output_format: str
+    """
+
     for f in files:
         Converter.convert(f, output_format)
 
 
 if __name__ == "__main__":
     main()
-    
 
 
-
-'''
+"""
 import os
 from os.path import join
 import time
@@ -75,4 +123,4 @@ print(f"Downloaded the tutorial in {toc - tic:0.4f} seconds")
 print("FIN")
 
 
-'''
+"""
