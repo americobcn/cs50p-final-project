@@ -1,7 +1,7 @@
 import argparse, re
 from os.path import join
 from os import walk
-from subprocess import call
+from subprocess import Popen
 
 
 class Converter:
@@ -9,89 +9,106 @@ class Converter:
 
     @classmethod
     def convert(cls, input_file=str, input_format=str, output_format=str):
-        output_file = re.sub(r"", r"", input_file)
-        call(f"/usr/local/bin/ffmpeg -i '{input_file}' '{output_file}'")
-
-
-def main():
-    args = app_args_parser()
-    files = look_up_files(args.path)
-    convert_files(files, args.output)
+        output_file = re.sub(
+            r"(\.)" + input_format + r"($)",
+            "." + output_format,
+            input_file,
+        )
+        try:
+            with Popen(
+                ["/usr/local/bin/ffmpeg", "-i", input_file, output_file]
+            ) as proc:
+                ...
+        except (OSError, ValueError) as e:
+            print("e")
 
 
 def app_args_parser():
-    parser = argparse.ArgumentParser(description="Scan folder ")
+    parser = argparse.ArgumentParser(description="Scan folder.")
     parser.add_argument(
         "-p",
         "--path",
         required=True,
-        help="folder to lookup for audio files to be converted",
+        help="Root folder to search audio files.",
         type=str,
     )
-    parser.add_argument(
-        "-d",
-        "--dest",
-        required=True,
-        help="Destination folder to save converted audio files",
-        type=str,
-    )
+    # parser.add_argument(
+    #     "-d",
+    #     "--dest",
+    #     required=True,
+    #     help="Destination folder to save converted audio files",
+    #     type=str,
+    # )
     parser.add_argument(
         "-i",
         "--input",
+        choices=["wav", "caf", "mp3", "aif"],
         required=True,
-        help="Input format audio files [wav, aiff , mp3, ...]",
+        help="Input format audio files ['wav', 'caf', 'mp3', 'aif'].",
         type=str,
     )
     parser.add_argument(
         "-o",
         "--output",
+        choices=["wav", "caf", "mp3", "aif"],
         required=True,
-        help="Output format audio files [wav, aiff , mp3, ...]",
+        help="Output format audio files ['wav', 'caf', 'mp3', 'aif'].",
         type=str,
     )
-    parser.add_argument(
-        "-l",
-        "--log",
-        required=True,
-        choices=[True, False],
-        help="Log while converting files",
-        type=bool,
-    )
+    # parser.add_argument(
+    #     "-l",
+    #     "--log",
+    #     required=True,
+    #     choices=[True, False],
+    #     help="Log while converting files",
+    #     type=bool,
+    # )
     return parser.parse_args()
 
 
-def look_up_files(root_folder=str, output_format=str):
+def look_up_files(root_folder=str, input_format=str):
     """
     Scan folder.
 
     :param root_folder: Root folder to be scanned
     :type root_folder: str
-    :param output_format: str 'wav, mp3, aif'
-    :type output_format: str
+    :param input_format: str 'wav, mp3, aif'
+    :type input_format: str
     :return: A list fo paths
     :rtype: list
     """
 
     files_to_convert = []
-    for root, dirs, files in walk(root_folder):
+    for root, dirs, files in walk(root_folder, onerror=print_error):
         for f in files:
-            if f.endswith(f".{output_format}"):
+            if f.endswith(f".{input_format}"):
                 files_to_convert.append(join(root, f))
     return files_to_convert
 
 
-def convert_files(files=list, output_format=str):
+def convert_files(files=list, input_format=str, output_format=str):
     """
     Convert a list of files to output format.
 
     :param files: List of files to be converted
     :type root_folder: list
+    :param imput_format: str 'wav, mp3, aif'
     :param output_format: str 'wav, mp3, aif'
     :type output_format: str
     """
 
     for f in files:
-        Converter.convert(f, output_format)
+        Converter.convert(f, input_format, output_format)
+
+
+def print_error(error=OSError):
+    print(error)
+
+
+def main():
+    args = app_args_parser()
+    files = look_up_files(args.path, args.input)
+    convert_files(files, args.input, args.output)
 
 
 if __name__ == "__main__":
