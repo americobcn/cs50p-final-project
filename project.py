@@ -5,10 +5,18 @@ from subprocess import Popen
 
 
 class Converter:
-    def __init__(self) -> None: ...
-
     @classmethod
-    def convert(cls, input_file=str, input_format=str, output_format=str):
+    def convert(cls, input_file=str, input_format=str, output_format=str, quality=str):
+        match output_format:
+            case ("wav", "aif"):
+                ...
+            case "mp3":
+                ...
+            case "aac":
+                ...
+            case "caf":
+                ...
+
         output_file = re.sub(
             r"(\.)" + input_format + r"($)",
             "." + output_format,
@@ -18,7 +26,8 @@ class Converter:
             with Popen(
                 ["/usr/local/bin/ffmpeg", "-i", input_file, output_file]
             ) as proc:
-                ...
+                proc.wait()
+
         except (OSError, ValueError) as e:
             print("e")
 
@@ -32,13 +41,14 @@ def app_args_parser():
         help="Root folder to search audio files.",
         type=str,
     )
-    # parser.add_argument(
-    #     "-d",
-    #     "--dest",
-    #     required=True,
-    #     help="Destination folder to save converted audio files",
-    #     type=str,
-    # )
+    parser.add_argument(
+        "-q",
+        "--quality",
+        choices=["low", "high"],
+        required=True,
+        help="Quality: ['low', 'high']",
+        type=str,
+    )
     parser.add_argument(
         "-i",
         "--input",
@@ -79,7 +89,7 @@ def look_up_files(root_folder=str, input_format=str):
     """
 
     files_to_convert = []
-    for root, dirs, files in walk(root_folder, onerror=print_error):
+    for root, dirs, files in walk(root_folder, onerror=handle_error):
         for f in files:
             if f.endswith(f".{input_format}"):
                 files_to_convert.append(join(root, f))
@@ -101,8 +111,9 @@ def convert_files(files=list, input_format=str, output_format=str):
         Converter.convert(f, input_format, output_format)
 
 
-def print_error(error=OSError):
-    print(error)
+def handle_error(error=OSError, root_folder=str):
+    with open(join(root_folder, "log.txt"), "w+") as file:
+        file.write(error)
 
 
 def main():
