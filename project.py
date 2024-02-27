@@ -1,23 +1,16 @@
 import argparse, re
 from os.path import join
 from os import walk
-from subprocess import Popen, PIPE
+from subprocess import run, CalledProcessError
 
 
 class Converter:
-    """
-    Implemented as Singleton
+    """ """
 
-    """
-
-    # def __new__(cls):
-    #     if not hasattr(cls, "instance"):
-    #         cls.instance = super(Converter, cls).__new__(cls)
-    #         return cls.instance
-
-    def __init__(self, input_format=str, output_format=str) -> None:
+    def __init__(self, input_format=str, output_format=str, root_folder=str) -> None:
         self.input_format = input_format
         self.output_format = output_format
+        self.root_folder = root_folder
 
     def convert(self, input_file=str):
         codec = []
@@ -36,7 +29,7 @@ class Converter:
         )
 
         try:
-            with Popen(
+            run(
                 [
                     "/usr/local/bin/ffmpeg",
                     "-i",
@@ -44,17 +37,17 @@ class Converter:
                     *codec,
                     output_file,
                 ],
-                # stdout=PIPE,
-                stderr=PIPE,
-            ) as proc:
-                error, output = proc.communicate()
-                print(f"converting: '{input_file}' to '{output_file}'")
-                # print(str(output, encoding="utf-8"))
-                if error:
-                    raise ValueError(error)
+                check=True,
+                text=True,
+                capture_output=True,
+            )
+            print(f"Succes converting '{input_file}' to '{output_file}'")
 
-        except (OSError, ValueError) as e:
-            print(e)
+        except CalledProcessError as e:
+            error = str(e.stderr).split("\n")[-2]
+            print(f"Error: {error}")
+            with open(join(self.root_folder, "Error_logs.txt"), "w+") as log_file:
+                log_file.write(error)
 
 
 def app_args_parser():
@@ -93,7 +86,7 @@ def app_args_parser():
     return parser.parse_args()
 
 
-def look_up_files(root_folder=str, input_format=str):
+def look_up_files(root_folder=str, search_format=str):
     """
     Scan folder.
 
@@ -106,14 +99,14 @@ def look_up_files(root_folder=str, input_format=str):
     """
 
     files_to_convert = []
-    for root, dirs, files in walk(root_folder, onerror=handle_error):
+    for root, dirs, files in walk(root_folder, onerror=handle_walk_error):
         for f in files:
-            if f.endswith(f".{input_format}"):
+            if f.endswith(f".{search_format}"):
                 files_to_convert.append(join(root, f))
     return files_to_convert
 
 
-def convert_files(files=list, input_format=str, output_format=str):
+def convert_files(files=list, input_format=str, output_format=str, root_folder=str):
     """
     Convert a list of files to output format.
 
@@ -124,52 +117,23 @@ def convert_files(files=list, input_format=str, output_format=str):
     :type output_format: str
     """
 
-    c = Converter(input_format, output_format)
-    try:
-        for f in files:
-            c.convert(f)
-    except ValueError:
-        ...
+    c = Converter(input_format, output_format, root_folder)
+
+    for f in files:
+        c.convert(f)
 
 
-def handle_error(error=OSError, root_folder=str):
-    with open(join(root_folder, "log.txt"), "w+") as file:
+def handle_walk_error(error=OSError):
+    print(f"Error walking: [{error.errno}] : {error.filename}")
+    with open(join(error.filename, "looking_log.txt"), "w+") as file:
         file.write(error)
 
 
 def main():
     args = app_args_parser()
     files = look_up_files(args.path, args.input)
-    convert_files(files, args.input, args.output)
+    convert_files(files, args.input, args.output, args.path)
 
 
 if __name__ == "__main__":
     main()
-
-
-"""
-import os
-from os.path import join
-import time
-
-files_to_convert = []
-tic = time.perf_counter()
-
-for root, dirs, files in os.walk("/Volumes/Library/FX"):
-    for f in files:
-        if f.endswith(".caf"):
-            files_to_convert.append(join(root, f))
-
-
-with open("files.txt", "w") as file:
-    file.write("\n".join(str(path) for path in files_to_convert))
-
-
-toc = time.perf_counter()
-
-print(f"Downloaded the tutorial in {toc - tic:0.4f} seconds")
-
-print("FIN")
-
-
-"""
