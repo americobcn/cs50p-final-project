@@ -1,35 +1,60 @@
 import argparse, re
 from os.path import join
 from os import walk
-from subprocess import Popen
+from subprocess import Popen, PIPE
 
 
 class Converter:
-    @classmethod
-    def convert(cls, input_file=str, input_format=str, output_format=str, quality=str):
-        match output_format:
+    """
+    Implemented as Singleton
+
+    """
+
+    # def __new__(cls):
+    #     if not hasattr(cls, "instance"):
+    #         cls.instance = super(Converter, cls).__new__(cls)
+    #         return cls.instance
+
+    def __init__(self, input_format=str, output_format=str) -> None:
+        self.input_format = input_format
+        self.output_format = output_format
+
+    def convert(self, input_file=str):
+        codec = []
+        match self.output_format:
             case ("wav", "aif"):
-                ...
+                codec = ["-c:a", "pcm_s24le", "-ar", "48000"]
             case "mp3":
-                ...
+                codec = ["-acodec", "libmp3lame", "-b:a", "320k"]
             case "aac":
-                ...
-            case "caf":
-                ...
+                codec = ["-acodec", "aac", "-vbr", "5"]
 
         output_file = re.sub(
-            r"(\.)" + input_format + r"($)",
-            "." + output_format,
+            r"(\.)" + self.input_format + r"($)",
+            "." + self.output_format,
             input_file,
         )
+
         try:
             with Popen(
-                ["/usr/local/bin/ffmpeg", "-i", input_file, output_file]
+                [
+                    "/usr/local/bin/ffmpeg",
+                    "-i",
+                    input_file,
+                    *codec,
+                    output_file,
+                ],
+                # stdout=PIPE,
+                stderr=PIPE,
             ) as proc:
-                proc.wait()
+                error, output = proc.communicate()
+                print(f"converting: '{input_file}' to '{output_file}'")
+                # print(str(output, encoding="utf-8"))
+                if error:
+                    raise ValueError(error)
 
         except (OSError, ValueError) as e:
-            print("e")
+            print(e)
 
 
 def app_args_parser():
@@ -42,37 +67,29 @@ def app_args_parser():
         type=str,
     )
     parser.add_argument(
-        "-q",
-        "--quality",
-        choices=["low", "high"],
-        required=True,
-        help="Quality: ['low', 'high']",
-        type=str,
-    )
-    parser.add_argument(
         "-i",
         "--input",
         choices=["wav", "caf", "mp3", "aif"],
         required=True,
-        help="Input format audio files ['wav', 'caf', 'mp3', 'aif'].",
+        help="Input format audio files ['wav', 'caf', 'mp3', 'aif', ...].",
         type=str,
     )
     parser.add_argument(
         "-o",
         "--output",
-        choices=["wav", "caf", "mp3", "aif"],
+        choices=["wav", "aif", "aac", "mp3"],
         required=True,
-        help="Output format audio files ['wav', 'caf', 'mp3', 'aif'].",
+        help="Output format audio files ['wav', 'aif', 'aac', 'mp3'].",
         type=str,
     )
-    # parser.add_argument(
-    #     "-l",
-    #     "--log",
-    #     required=True,
-    #     choices=[True, False],
-    #     help="Log while converting files",
-    #     type=bool,
-    # )
+    parser.add_argument(
+        "-l",
+        "--log",
+        required=False,
+        choices=[True, False],
+        help="Log while converting files",
+        type=bool,
+    )
     return parser.parse_args()
 
 
@@ -107,8 +124,12 @@ def convert_files(files=list, input_format=str, output_format=str):
     :type output_format: str
     """
 
-    for f in files:
-        Converter.convert(f, input_format, output_format)
+    c = Converter(input_format, output_format)
+    try:
+        for f in files:
+            c.convert(f)
+    except ValueError:
+        ...
 
 
 def handle_error(error=OSError, root_folder=str):
