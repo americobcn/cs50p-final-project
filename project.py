@@ -1,26 +1,68 @@
-import argparse, re
-from os.path import join
+import argparse, re, signal
+from os.path import join, isfile
 from os import walk
 from subprocess import run, CalledProcessError
 
 
-class Converter:
-    """ """
+class bcolors:
+    HEADER = "\033[95m"
+    OKBLUE = "\033[94m"
+    OKCYAN = "\033[96m"
+    OKGREEN = "\033[92m"
+    WARNING = "\033[93m"
+    FAIL = "\033[91m"
+    ENDC = "\033[0m"
+    BOLD = "\033[1m"
+    UNDERLINE = "\033[4m"
 
-    def __init__(self, input_format=str, output_format=str, root_folder=str) -> None:
+
+class FFMPEGError(Exception):
+    """Raise an error if call to ffmpeg return code is not 0"""
+
+    def __init__(self, *args):
+        super().__init__(*args)
+
+    def __str__(self):
+        error = "".join(self.args[0].split("\n")[-2:-1])
+        return error
+
+
+class Converter:
+    """Convert an audio file to another supported format"""
+
+    def __init__(
+        self, input_format=str, output_format=str, root_folder=str, quality=str
+    ) -> None:
         self.input_format = input_format
         self.output_format = output_format
         self.root_folder = root_folder
+        self.quality = quality
 
-    def convert(self, input_file=str):
-        codec = []
-        match self.output_format:
-            case ("wav", "aif"):
-                codec = ["-c:a", "pcm_s24le", "-ar", "48000"]
-            case "mp3":
-                codec = ["-acodec", "libmp3lame", "-b:a", "320k"]
-            case "aac":
-                codec = ["-acodec", "aac", "-vbr", "5"]
+    def convert(self, input_file=str, quality=str):
+        options = []
+        if quality == "high":
+            match self.output_format:
+                case ("wav", "aif"):
+                    options = ["-acodec", "pcm_s24le", "-ar", "48000"]
+                case "mp3":
+                    options = ["-acodec", "libmp3lame", "-b:a", "320k"]
+                case "aac":
+                    options = ["-acodec", "aac", "-vbr", "5"]
+        else:
+            match self.output_format:
+                case ("wav", "aif"):
+                    options = ["-acodec", "pcm_s16le", "-ar", "44100"]
+                case "mp3":
+                    options = [
+                        "-acodec",
+                        "libmp3lame",
+                        "-ar",
+                        "44100",
+                        "-b:a",
+                        "160k",
+                    ]
+                case "aac":
+                    options = ["-acodec", "aac", "-vbr", "2"]
 
         output_file = re.sub(
             r"(\.)" + self.input_format + r"($)",
@@ -28,26 +70,25 @@ class Converter:
             input_file,
         )
 
-        try:
-            run(
+        if not isfile(output_file):
+            completed = run(
                 [
                     "/usr/local/bin/ffmpeg",
                     "-i",
                     input_file,
-                    *codec,
+                    *options,
                     output_file,
                 ],
-                check=True,
+                # check=True,
                 text=True,
                 capture_output=True,
             )
-            print(f"Succes converting '{input_file}' to '{output_file}'")
-
-        except CalledProcessError as e:
-            error = str(e.stderr).split("\n")[-2]
-            print(f"Error: {error}")
-            with open(join(self.root_folder, "Error_logs.txt"), "w+") as log_file:
-                log_file.write(error)
+            if completed.returncode != 0:
+                raise FFMPEGError(completed.stderr)
+            else:
+                print(
+                    f"{bcolors.OKGREEN}Succes converting '{input_file}' to '{output_file}'{bcolors.ENDC}"
+                )
 
 
 def app_args_parser():
@@ -76,12 +117,12 @@ def app_args_parser():
         type=str,
     )
     parser.add_argument(
-        "-l",
-        "--log",
-        required=False,
-        choices=[True, False],
-        help="Log while converting files",
-        type=bool,
+        "-q",
+        "--quality",
+        required=True,
+        choices=["low", "high"],
+        help="Set quality of converted files (default='high')",
+        type=str,
     )
     return parser.parse_args()
 
@@ -106,7 +147,9 @@ def look_up_files(root_folder=str, search_format=str):
     return files_to_convert
 
 
-def convert_files(files=list, input_format=str, output_format=str, root_folder=str):
+def convert_files(
+    files=list, input_format=str, output_format=str, root_folder=str, quality=str
+):
     """
     Convert a list of files to output format.
 
@@ -115,24 +158,34 @@ def convert_files(files=list, input_format=str, output_format=str, root_folder=s
     :param imput_format: str 'wav, mp3, aif'
     :param output_format: str 'wav, mp3, aif'
     :type output_format: str
+    :type quality: str 'low, high'
     """
 
-    c = Converter(input_format, output_format, root_folder)
+    c = Converter(input_format, output_format, root_folder, quality)
 
     for f in files:
-        c.convert(f)
+        try:
+            c.convert(f)
+
+        except FFMPEGError as e:
+            print(f"{bcolors.FAIL}{e}: {f}{bcolors.ENDC}")
+            with open(join(root_folder, "Error_log.txt"), "a") as log_file:
+                log_file.write(f"{e}: {f}\n")
 
 
 def handle_walk_error(error=OSError):
-    print(f"Error walking: [{error.errno}] : {error.filename}")
-    with open(join(error.filename, "looking_log.txt"), "w+") as file:
+    print(
+        f"{bcolors.FAIL}Error walking: [{error.errno}] : {error.filename}{bcolors.ENDC}"
+    )
+    with open(join(error.filename, "looking_log.txt"), "a") as file:
         file.write(error)
 
 
 def main():
     args = app_args_parser()
     files = look_up_files(args.path, args.input)
-    convert_files(files, args.input, args.output, args.path)
+    print(f"MAIN QUALITY: {args.quality}")
+    convert_files(files, args.input, args.output, args.path, args.quality)
 
 
 if __name__ == "__main__":
