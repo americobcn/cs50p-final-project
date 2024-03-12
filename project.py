@@ -1,7 +1,7 @@
-import argparse, re, signal
+import argparse, re, sys
 from os.path import join, isfile
 from os import walk
-from subprocess import run, CalledProcessError
+from subprocess import run
 
 
 class bcolors:
@@ -37,32 +37,33 @@ class Converter:
         self.output_format = output_format
         self.root_folder = root_folder
         self.quality = quality
+        self.options = list()
 
-    def convert(self, input_file=str, quality=str):
-        options = []
-        if quality == "high":
+    def __str__(self) -> str:
+        return f"Initializing converter:\nin: {self.input_format}\nout: {self.output_format}\nq: {self.quality}"
+
+    def convert(self, input_file=str):
+        if self.quality == "high":
             match self.output_format:
-                case ("wav", "aif"):
-                    options = ["-acodec", "pcm_s24le", "-ar", "48000"]
+                case "wav" | "aif":
+                    self.options = ["-acodec", "pcm_s24le", "-ar", "48000"]
                 case "mp3":
-                    options = ["-acodec", "libmp3lame", "-b:a", "320k"]
+                    self.options = ["-acodec", "libmp3lame", "-b:a", "320k"]
                 case "aac":
-                    options = ["-acodec", "aac", "-vbr", "5"]
+                    self.options = ["-acodec", "aac", "-vbr", "5"]
         else:
             match self.output_format:
-                case ("wav", "aif"):
-                    options = ["-acodec", "pcm_s16le", "-ar", "44100"]
+                case "wav" | "aif":
+                    self.options = ["-acodec", "pcm_s16le", "-ar", "44100"]
                 case "mp3":
-                    options = [
+                    self.options = [
                         "-acodec",
                         "libmp3lame",
-                        "-ar",
-                        "44100",
                         "-b:a",
                         "160k",
                     ]
                 case "aac":
-                    options = ["-acodec", "aac", "-vbr", "2"]
+                    self.options = ["-acodec", "aac", "-vbr", "2"]
 
         output_file = re.sub(
             r"(\.)" + self.input_format + r"($)",
@@ -73,10 +74,10 @@ class Converter:
         if not isfile(output_file):
             completed = run(
                 [
-                    "/usr/local/bin/ffmpeg",
+                    "ffmpeg",
                     "-i",
                     input_file,
-                    *options,
+                    *self.options,
                     output_file,
                 ],
                 # check=True,
@@ -87,12 +88,14 @@ class Converter:
                 raise FFMPEGError(completed.stderr)
             else:
                 print(
-                    f"{bcolors.OKGREEN}Succes converting '{input_file}' to '{output_file}'{bcolors.ENDC}"
+                    f"{bcolors.OKGREEN}Succes converting '{input_file}' to '{output_file}', quality: {self.quality}{bcolors.ENDC}"
                 )
 
 
-def app_args_parser():
-    parser = argparse.ArgumentParser(description="Scan folder.")
+def app_args_parser(args):
+    parser = argparse.ArgumentParser(
+        description="Convert audio files starting in the 'root_folder' recursively. Save an error log file in the 'root_folder'."
+    )
     parser.add_argument(
         "-p",
         "--path",
@@ -124,7 +127,7 @@ def app_args_parser():
         help="Set quality of converted files (default='high')",
         type=str,
     )
-    return parser.parse_args()
+    return parser.parse_args(args)
 
 
 def look_up_files(root_folder=str, search_format=str):
@@ -160,8 +163,9 @@ def convert_files(
     :type output_format: str
     :type quality: str 'low, high'
     """
+    print(quality)
 
-    c = Converter(input_format, output_format, root_folder, quality)
+    c = Converter(input_format, output_format, root_folder, str(quality))
 
     for f in files:
         try:
@@ -182,10 +186,10 @@ def handle_walk_error(error=OSError):
 
 
 def main():
-    args = app_args_parser()
+    args = app_args_parser(sys.argv[1:])
     files = look_up_files(args.path, args.input)
-    print(f"MAIN QUALITY: {args.quality}")
     convert_files(files, args.input, args.output, args.path, args.quality)
+    sys.exit(0)
 
 
 if __name__ == "__main__":
