@@ -38,6 +38,15 @@ class Converter:
         self.root_folder = root_folder
         self.quality = quality
         self.options = list()
+        self.counter = 0
+
+    @property
+    def counter(self):
+        return self._counter
+
+    @counter.setter
+    def counter(self, counter):
+        self._counter = counter
 
     def __str__(self) -> str:
         return f"Initializing converter:\nin: {self.input_format}\nout: {self.output_format}\nq: {self.quality}"
@@ -48,7 +57,14 @@ class Converter:
                 case "wav" | "aif":
                     self.options = ["-acodec", "pcm_s24le", "-ar", "48000"]
                 case "mp3":
-                    self.options = ["-acodec", "libmp3lame", "-b:a", "320k"]
+                    self.options = [
+                        "-acodec",
+                        "libmp3lame",
+                        "-b:a",
+                        "320k",
+                        "-ar",
+                        "48000",
+                    ]
                 case "aac":
                     self.options = ["-acodec", "aac", "-vbr", "5"]
         else:
@@ -61,6 +77,8 @@ class Converter:
                         "libmp3lame",
                         "-b:a",
                         "160k",
+                        "-ar",
+                        "44100",
                     ]
                 case "aac":
                     self.options = ["-acodec", "aac", "-vbr", "2"]
@@ -87,6 +105,7 @@ class Converter:
             if completed.returncode != 0:
                 raise FFMPEGError(completed.stderr)
             else:
+                self.counter += 1
                 print(
                     f"{bcolors.OKGREEN}Succes converting '{input_file}' to '{output_file}', quality: {self.quality}{bcolors.ENDC}"
                 )
@@ -163,10 +182,8 @@ def convert_files(
     :type output_format: str
     :type quality: str 'low, high'
     """
-    print(quality)
 
     c = Converter(input_format, output_format, root_folder, str(quality))
-
     for f in files:
         try:
             c.convert(f)
@@ -175,6 +192,8 @@ def convert_files(
             print(f"{bcolors.FAIL}{e}: {f}{bcolors.ENDC}")
             with open(join(root_folder, "Error_log.txt"), "a") as log_file:
                 log_file.write(f"{e}: {f}\n")
+
+    return c.counter
 
 
 def handle_walk_error(error=OSError):
@@ -188,8 +207,10 @@ def handle_walk_error(error=OSError):
 def main():
     args = app_args_parser(sys.argv[1:])
     files = look_up_files(args.path, args.input)
-    convert_files(files, args.input, args.output, args.path, args.quality)
-    sys.exit(0)
+    converted_num = convert_files(
+        files, args.input, args.output, args.path, args.quality
+    )
+    print(f"Succesfully converted {converted_num} files.")
 
 
 if __name__ == "__main__":
