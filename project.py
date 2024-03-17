@@ -98,7 +98,6 @@ class Converter:
                     *self.options,
                     output_file,
                 ],
-                # check=True,
                 text=True,
                 capture_output=True,
             )
@@ -200,7 +199,7 @@ def handle_walk_error(error=OSError):
     print(
         f"{bcolors.FAIL}Error walking: [{error.errno}] : {error.filename}{bcolors.ENDC}"
     )
-    with open(join(error.filename, "looking_log.txt"), "a") as file:
+    with open(join(error.filename, "OSError_log.txt"), "a") as file:
         file.write(error)
 
 

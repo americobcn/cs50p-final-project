@@ -3,7 +3,7 @@ from project import (
     convert_files,
     look_up_files,
 )
-import pytest, os, time
+import pytest, os
 
 
 def test_app_args_parser(capsys):
@@ -78,7 +78,7 @@ def test_convert_files(capsys):
 
 
 @pytest.mark.parametrize(
-    "a, b, c, d, e, expected",
+    "files_list, in_format, out_format, root_folder, quality, expected",
     [
         (
             ["./files/SFX/sfx01.wav"],
@@ -98,8 +98,10 @@ def test_convert_files(capsys):
         ),
     ],
 )
-def test_convert_files_parametrization(capsys, a, b, c, d, e, expected):
-    convert_files(a, b, c, d, e)
+def test_convert_files_parametrization(
+    capsys, files_list, in_format, out_format, root_folder, quality, expected
+):
+    convert_files(files_list, in_format, out_format, root_folder, quality)
     captured = capsys.readouterr()
     assert captured.out.strip() == expected
 
