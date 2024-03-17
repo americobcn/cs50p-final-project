@@ -4,31 +4,23 @@ from os import walk
 from subprocess import run
 
 
-class bcolors:
-    HEADER = "\033[95m"
-    OKBLUE = "\033[94m"
-    OKCYAN = "\033[96m"
-    OKGREEN = "\033[92m"
-    WARNING = "\033[93m"
-    FAIL = "\033[91m"
-    ENDC = "\033[0m"
-    BOLD = "\033[1m"
-    UNDERLINE = "\033[4m"
-
-
-class FFMPEGError(Exception):
-    """Raise an error if call to ffmpeg return code is not 0"""
-
-    def __init__(self, *args):
-        super().__init__(*args)
-
-    def __str__(self):
-        error = "".join(self.args[0].split("\n")[-2:-1])
-        return error
-
-
 class Converter:
-    """Convert an audio file to another supported format"""
+    """
+    Convert an audio file to another supported format
+    :param input_format: Files format to look for. {wav, aif, mp3, aac}
+    :type input_format: str
+    :param output_format: Destination file format to convert to. {wav, aif, mp3, aac}
+    :type output_format: str
+    :param root_folder: Path where to start scanning for audio files.
+    :type root_folder: str
+    :param quality: Set the quality of the conversion. {low, high}
+    :type quality: str
+    :param options: a list to hold the arguments passed to 'ffmpeg' via 'subprocess.run'
+    :type options: list
+    :param counter: a property to track the number of succesfully converted files.
+    :type counter: Int
+    :function convert(): Perform the conversion, accepts one argument, a path to an audio file. Update counter on succes or raise an FFMPEGError on fail.
+    """
 
     def __init__(
         self, input_format=str, output_format=str, root_folder=str, quality=str
@@ -108,6 +100,34 @@ class Converter:
                 print(
                     f"{bcolors.OKGREEN}Succes converting '{input_file}' to '{output_file}', quality: {self.quality}{bcolors.ENDC}"
                 )
+
+
+class FFMPEGError(Exception):
+    """
+    Raise an error if call to ffmpeg return code is not 0
+    The convert method of the Converter class will raise the FFMPEGError
+    """
+
+    def __init__(self, *args):
+        super().__init__(*args)
+
+    def __str__(self):
+        error = "".join(self.args[0].split("\n")[-2:-1])
+        return error
+
+
+class bcolors:
+    """Colors definition attributes to customize stdout strings"""
+
+    HEADER = "\033[95m"
+    OKBLUE = "\033[94m"
+    OKCYAN = "\033[96m"
+    OKGREEN = "\033[92m"
+    WARNING = "\033[93m"
+    FAIL = "\033[91m"
+    ENDC = "\033[0m"
+    BOLD = "\033[1m"
+    UNDERLINE = "\033[4m"
 
 
 def app_args_parser(args):
