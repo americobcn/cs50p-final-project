@@ -98,7 +98,7 @@ class Converter:
             else:
                 self.counter += 1
                 print(
-                    f"{bcolors.OKGREEN}Succes converting '{input_file}' to '{output_file}', quality: {self.quality}{bcolors.ENDC}"
+                    f"{StringColors.OKGREEN}Succes converting '{input_file}' to '{output_file}', quality: {self.quality}{StringColors.ENDC}"
                 )
 
 
@@ -116,7 +116,7 @@ class FFMPEGError(Exception):
         return error
 
 
-class bcolors:
+class StringColors:
     """Colors definition attributes to customize stdout strings"""
 
     HEADER = "\033[95m"
@@ -208,7 +208,7 @@ def convert_files(
             c.convert(f)
 
         except FFMPEGError as e:
-            print(f"{bcolors.FAIL}{e}: {f}{bcolors.ENDC}")
+            print(f"{StringColors.FAIL}{e}: {f}{StringColors.ENDC}")
             with open(join(root_folder, "Error_log.txt"), "a") as log_file:
                 log_file.write(f"{e}: {f}\n")
 
@@ -217,7 +217,7 @@ def convert_files(
 
 def handle_walk_error(error=OSError):
     print(
-        f"{bcolors.FAIL}Error walking: [{error.errno}] : {error.filename}{bcolors.ENDC}"
+        f"{StringColors.FAIL}Error walking: [{error.errno}] : {error.filename}{StringColors.ENDC}"
     )
     with open(join(error.filename, "OSError_log.txt"), "a") as file:
         file.write(error)
